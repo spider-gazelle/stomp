@@ -3,10 +3,10 @@ require "./spec_helper"
 module STOMP
   describe Frame do
     it "should parse a simple stomp frame" do
-      raw = %(SEND\nheader:value\ncontent-length:10\n\nbody text\0)
+      raw = %(SEND\nheader:value\ncontent-length:9\n\nbody text\0)
       msg = Frame.new(raw)
       msg.command.should eq(Command::Send)
-      msg.headers.should eq(HTTP::Headers{"header" => "value", "content-length" => "10"})
+      msg.headers.should eq(HTTP::Headers{"header" => "value", "content-length" => "9"})
       msg.body_text.should eq("body text")
 
       msg.to_s.should eq(raw)
@@ -18,7 +18,7 @@ module STOMP
         receipt-id:message-12345
         content-type:text/plain
         message:malformed frame received
-        content-length:171
+        content-length:170
 
         The message:
         -----
@@ -38,7 +38,7 @@ module STOMP
         "receipt-id"     => "message-12345",
         "content-type"   => "text/plain",
         "message"        => "malformed frame received",
-        "content-length" => "171",
+        "content-length" => "170",
       })
       msg.body_text.should eq <<-MSG
         The message:
@@ -93,6 +93,23 @@ module STOMP
         "content-type" => "text/plain",
       })
       msg.body_text.should eq("hello queue a")
+      msg.send_content_length = false
+      msg.to_s.should eq(raw)
+    end
+
+    it "should parse example RECEIPT frame" do
+      raw = <<-MSG
+        RECEIPT
+        receipt-id:message-12345
+
+        \0
+        MSG
+      msg = Frame.new(raw)
+      msg.command.should eq(Command::Receipt)
+      msg.headers.should eq(HTTP::Headers{
+        "receipt-id" => "message-12345",
+      })
+      msg.body_text.should eq("")
       msg.send_content_length = false
       msg.to_s.should eq(raw)
     end

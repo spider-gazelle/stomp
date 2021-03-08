@@ -7,11 +7,12 @@ class STOMP::Client
 
   getter host : String
   getter version : Version = Version::V1_0
+  getter? connected : Bool = false
   getter server : String? = nil
   getter session : String? = nil
 
-  getter heart_beat_client : Tuple(UInt32, UInt32)? = nil
-  getter heart_beat_server : Tuple(UInt32, UInt32)? = nil
+  getter heart_beat_client : Tuple(Int32, Int32)? = nil
+  getter heart_beat_server : Tuple(Int32, Int32)? = nil
 
   # Client => Server beat time, Server => Client beat time
   def heart_beat
@@ -27,13 +28,13 @@ class STOMP::Client
   end
 
   def connect
-    Frame.new(:connect, HTTP::Headers{
+    Frame.new(Command::Connect, HTTP::Headers{
       "accept-version" => "1.0,1.1,1.2",
       "host"           => @host,
     })
   end
 
-  def stomp(username : String? = nil, password : String? = nil, heart_beat : Tuple(UInt32, UInt32)? = nil)
+  def stomp(username : String? = nil, password : String? = nil, heart_beat : Tuple(Int32, Int32)? = nil)
     @heart_beat_client = heart_beat
     headers = HTTP::Headers{
       "accept-version" => "1.1,1.2",
@@ -42,12 +43,18 @@ class STOMP::Client
     headers["login"] = username if username
     headers["passcode"] = password if password
     headers["heart-beat"] = "#{heart_beat[0]},#{heart_beat[1]}" if heart_beat
-    Frame.new(:stomp, headers)
+    Frame.new(Command::Stomp, headers)
   end
 
   def negotiate(stream)
-    frame = next_frame(stream)
-    raise ProtocolError.new("unexpected frame '#{frame.command}'") unless frame.command.connected?
+    frame = case stream
+            when Frame
+              stream
+            else
+              next_frame(stream)
+            end
+
+    raise ProtocolError.new("unexpected frame '#{frame.command}', expecting 'Connected'") unless frame.command.connected?
     if ver = frame.headers["version"]?
       @version = Version.parse("V#{ver.sub('.', '_')}")
     else
@@ -62,56 +69,57 @@ class STOMP::Client
     if beat = frame.headers["heart-beat"]?.try(&.split(','))
       @heart_beat_server = {beat[0].to_i, beat[1].to_i}
     end
+    @connected = true
     frame
   end
 
   def send(destination : String, headers : HTTP::Headers = HTTP::Headers.new, body : String = "", send_content_length : Bool = true)
     headers["destination"] = destination
-    Frame.new(:send, headers, body, send_content_length)
+    Frame.new(Command::Send, headers, body, send_content_length)
   end
 
   def subscribe(id, destination : String, headers : HTTP::Headers = HTTP::Headers.new, ack : AckMode = AckMode::Auto)
     headers["id"] = id.to_s
     headers["destination"] = destination
     headers["ack"] = ack.to_s.underscore.sub('_', '-')
-    Frame.new(:subscribe, headers)
+    Frame.new(Command::Subscribe, headers)
   end
 
   def unsubscribe(id, headers : HTTP::Headers = HTTP::Headers.new)
     headers["id"] = id.to_s
-    Frame.new(:subscribe, headers)
+    Frame.new(Command::Unsubscribe, headers)
   end
 
   def ack(id, headers : HTTP::Headers = HTTP::Headers.new, transaction = nil)
     headers["id"] = id.to_s
     headers["transaction"] = transaction.to_s if transaction
-    Frame.new(:ack, headers)
+    Frame.new(Command::Ack, headers)
   end
 
   def nack(id, headers : HTTP::Headers = HTTP::Headers.new, transaction = nil)
     headers["id"] = id.to_s
     headers["transaction"] = transaction.to_s if transaction
-    Frame.new(:nack, headers)
+    Frame.new(Command::Nack, headers)
   end
 
   def begin(transaction, headers : HTTP::Headers = HTTP::Headers.new)
     headers["transaction"] = transaction.to_s
-    Frame.new(:begin, headers)
+    Frame.new(Command::Begin, headers)
   end
 
   def commit(transaction, headers : HTTP::Headers = HTTP::Headers.new)
     headers["transaction"] = transaction.to_s
-    Frame.new(:commit, headers)
+    Frame.new(Command::Commit, headers)
   end
 
   def abort(transaction, headers : HTTP::Headers = HTTP::Headers.new)
     headers["transaction"] = transaction.to_s
-    Frame.new(:abort, headers)
+    Frame.new(Command::Abort, headers)
   end
 
   def disconnect(receipt, headers : HTTP::Headers = HTTP::Headers.new)
     headers["receipt"] = receipt.to_s
-    Frame.new(:disconnect, headers)
+    Frame.new(Command::Disconnect, headers)
   end
 
   def next_frame(stream) : Frame

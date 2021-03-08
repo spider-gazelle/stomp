@@ -17,16 +17,10 @@ class STOMP::Frame
       slice = Bytes.new(size)
       stream.read_fully(slice)
 
-      # need to read until null termination,
-      # standard is unclear if terminating character is included in content-length
-      # examples include it but many client implementations do not, so we should handle both
-      if slice[-1] == 0_u8
-        @body = slice[0..-2]
-      else
-        @body = slice
-        while (byte = stream.read_byte)
-          break if byte == 0_u8
-        end
+      # need to read until null termination, should be next byte
+      @body = slice
+      while (byte = stream.read_byte)
+        break if byte == 0_u8
       end
     else
       buffer = IO::Memory.new
@@ -42,7 +36,8 @@ class STOMP::Frame
     Frame.new(IO::Memory.new(frame))
   end
 
-  def initialize(@command, @headers = HTTP::Headers.new, @body = "", @send_content_length = true)
+  def initialize(@command, @headers = HTTP::Headers.new, body = "", @send_content_length = true)
+    @body = body.to_slice
   end
 
   property command : Command
@@ -74,11 +69,9 @@ class STOMP::Frame
         io << '\n'
       end
     end
-    # include the \0 character in the content-length
-    # not explicit in the standard but the examples include it
     if send_content_length
       io << "content-length:"
-      (body.size + 1).to_s(io)
+      body.size.to_s(io)
       io << '\n'
     end
     io << '\n'
