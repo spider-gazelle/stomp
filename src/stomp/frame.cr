@@ -32,7 +32,7 @@ class STOMP::Frame
     end
   end
 
-  def self.new(frame : String)
+  def self.new(frame : String | Bytes)
     Frame.new(IO::Memory.new(frame))
   end
 
