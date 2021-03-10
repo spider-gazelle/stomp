@@ -82,44 +82,44 @@ class STOMP::Client
     headers["id"] = id.to_s
     headers["destination"] = destination
     headers["ack"] = ack.to_s.underscore.sub('_', '-')
-    Frame.new(Command::Subscribe, headers)
+    Frame.new(Command::Subscribe, headers, send_content_length: false)
   end
 
   def unsubscribe(id, headers : HTTP::Headers = HTTP::Headers.new)
     headers["id"] = id.to_s
-    Frame.new(Command::Unsubscribe, headers)
+    Frame.new(Command::Unsubscribe, headers, send_content_length: false)
   end
 
   def ack(id, headers : HTTP::Headers = HTTP::Headers.new, transaction = nil)
     headers["id"] = id.to_s
     headers["transaction"] = transaction.to_s if transaction
-    Frame.new(Command::Ack, headers)
+    Frame.new(Command::Ack, headers, send_content_length: false)
   end
 
   def nack(id, headers : HTTP::Headers = HTTP::Headers.new, transaction = nil)
     headers["id"] = id.to_s
     headers["transaction"] = transaction.to_s if transaction
-    Frame.new(Command::Nack, headers)
+    Frame.new(Command::Nack, headers, send_content_length: false)
   end
 
   def begin(transaction, headers : HTTP::Headers = HTTP::Headers.new)
     headers["transaction"] = transaction.to_s
-    Frame.new(Command::Begin, headers)
+    Frame.new(Command::Begin, headers, send_content_length: false)
   end
 
   def commit(transaction, headers : HTTP::Headers = HTTP::Headers.new)
     headers["transaction"] = transaction.to_s
-    Frame.new(Command::Commit, headers)
+    Frame.new(Command::Commit, headers, send_content_length: false)
   end
 
   def abort(transaction, headers : HTTP::Headers = HTTP::Headers.new)
     headers["transaction"] = transaction.to_s
-    Frame.new(Command::Abort, headers)
+    Frame.new(Command::Abort, headers, send_content_length: false)
   end
 
   def disconnect(receipt, headers : HTTP::Headers = HTTP::Headers.new)
     headers["receipt"] = receipt.to_s
-    Frame.new(Command::Disconnect, headers)
+    Frame.new(Command::Disconnect, headers, send_content_length: false)
   end
 
   def next_frame(stream) : Frame
