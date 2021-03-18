@@ -1,6 +1,9 @@
 require "http"
+require "log"
 
 module STOMP
+  Log = ::Log.for("stomp")
+
   class ResponseError < Exception
     def initialize(frame : Frame)
       super(frame.headers["message"]? || frame.body_text)
@@ -38,6 +41,9 @@ module STOMP
     Message
     Receipt
     Error
+
+    # special case
+    HeartBeat
   end
 
   enum AckMode

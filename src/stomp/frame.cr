@@ -2,33 +2,38 @@ require "../stomp"
 
 class STOMP::Frame
   def initialize(stream : IO)
-    @command = Command.parse(stream.gets('\n').not_nil!.rstrip("\r\n"))
+    cmd_id = stream.gets('\n').not_nil!.rstrip("\r\n")
+    @command = cmd_id.empty? ? Command::HeartBeat : Command.parse(cmd_id)
     @headers = headers = HTTP::Headers.new
 
-    loop do
-      next_line = stream.gets('\n').not_nil!.rstrip("\r\n")
-      break if next_line.blank?
-      parts = next_line.split(':', 2)
-      raise "invalid header: '#{next_line}'" unless parts.size == 2
-      headers.add(STOMP.decode_header(parts[0]), STOMP.decode_header(parts[1]))
-    end
-
-    if size = headers.get?("content-length").try(&.first.to_i)
-      slice = Bytes.new(size)
-      stream.read_fully(slice)
-
-      # need to read until null termination, should be next byte
-      @body = slice
-      while (byte = stream.read_byte)
-        break if byte == 0_u8
-      end
+    if @command.heart_beat?
+      @body = Bytes.new(0)
     else
-      buffer = IO::Memory.new
-      while (byte = stream.read_byte)
-        break if byte == 0_u8
-        buffer.write_byte(byte)
+      loop do
+        next_line = stream.gets('\n').not_nil!.rstrip("\r\n")
+        break if next_line.blank?
+        parts = next_line.split(':', 2)
+        raise "invalid header: '#{next_line}'" unless parts.size == 2
+        headers.add(STOMP.decode_header(parts[0]), STOMP.decode_header(parts[1]))
       end
-      @body = buffer.to_slice
+
+      if size = headers.get?("content-length").try(&.first.to_i)
+        slice = Bytes.new(size)
+        stream.read_fully(slice)
+
+        # need to read until null termination, should be next byte
+        @body = slice
+        while (byte = stream.read_byte)
+          break if byte == 0_u8
+        end
+      else
+        buffer = IO::Memory.new
+        while (byte = stream.read_byte)
+          break if byte == 0_u8
+          buffer.write_byte(byte)
+        end
+        @body = buffer.to_slice
+      end
     end
   end
 
@@ -58,6 +63,11 @@ class STOMP::Frame
   end
 
   def to_s(io : IO) : Nil
+    if command.heart_beat?
+      io << '\n'
+      return
+    end
+
     io << command.to_s.upcase
     io << '\n'
     headers.each do |key, values|
