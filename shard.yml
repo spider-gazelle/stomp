@@ -1,5 +1,6 @@
 name: stomp
-version: 1.0.0
+version: 1.0.1
+crystal: ">= 0.36.1"
 
 development_dependencies:
   ameba:
