@@ -38,7 +38,7 @@ module STOMP
 
       client.connected?.should eq false
 
-      client.on_connected do |frame|
+      client.on_connected do |_frame|
         connected_was_called += 1
 
         client.send client.subscribe("main", "/some/path", HTTP::Headers{
@@ -46,7 +46,7 @@ module STOMP
         })
       end
 
-      client.on_message do |frame|
+      client.on_message do |_frame|
         received_message += 1
 
         client.close
@@ -61,11 +61,11 @@ module STOMP
         received_receipt += 1
       end
 
-      client.on_error do |frame|
+      client.on_error do |_frame|
         received_error += 1
       end
 
-      client.on_close do |frame|
+      client.on_close do |_frame|
         received_closed += 1
       end
 
