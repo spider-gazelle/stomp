@@ -1,6 +1,6 @@
 # Crystal Lang STOMP Protocol
 
-[![Build Status](https://travis-ci.com/spider-gazelle/stomp.svg?branch=master)](https://travis-ci.com/github/spider-gazelle/stomp)
+[![CI](https://github.com/spider-gazelle/stomp/actions/workflows/ci.yml/badge.svg)](https://github.com/spider-gazelle/stomp/actions/workflows/ci.yml)
 
 Communicate with devices supporting the STOMP protocol
 
